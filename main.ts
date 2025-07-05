@@ -6,7 +6,9 @@ import {
 	TFile,
 	Notice,
 	getAllTags,
+	setIcon,
 } from "obsidian";
+import { ErgodicWalk } from "./ergodic-walk";
 
 interface ErgodicPluginSettings {
 	excludedPaths: string;
@@ -24,98 +26,91 @@ const DEFAULT_SETTINGS: ErgodicPluginSettings = {
 
 export default class ErgodicPlugin extends Plugin {
 	settings: ErgodicPluginSettings;
+	private walk: ErgodicWalk;
 	private ribbonIconEl: HTMLElement;
-	private timerId: NodeJS.Timeout | null = null;
 	private statusBarItemEl: HTMLElement;
 	private timerBarEl: HTMLElement | null = null;
 
-	private readonly stopWalkHandler = () => {
-		this.stopRandomWalk(true);
+	private readonly stopWalkOnUIClick = (evt: MouseEvent) => {
+		if (this.ribbonIconEl.contains(evt.target as Node)) {
+			return; // Click was on the ribbon icon, so ignore it here.
+		}
+		this.walk.stop();
+		new Notice("Ergodic random walk stopped.");
 	};
 
 	async onload() {
 		await this.loadSettings();
 		this.statusBarItemEl = this.addStatusBarItem();
 
-		// Main command for timed walk (mirrors ribbon button)
+		this.walk = new ErgodicWalk({
+			onJump: () => this.handleJump(),
+			onStateChange: (isActive, interval) =>
+				this.handleStateChange(isActive, interval),
+		});
+
 		this.addCommand({
 			id: "open-random-note-and-walk",
 			name: "Open random note and start walk",
 			callback: () => this.toggleWalk(),
 		});
-
-		// Secondary command for a single jump with no timer
 		this.addCommand({
 			id: "open-random-note-no-timer",
 			name: "Open random note (no timer)",
 			hotkeys: [{ modifiers: ["Alt"], key: "r" }],
-			callback: () => this.performJump(false),
+			callback: async () => {
+				// Ensure any active walk is stopped before a single jump
+				if (this.walk.isActive) {
+					this.walk.stop();
+				}
+				await this.openRandomNote();
+			},
 		});
 
-		this.ribbonIconEl = this.addRibbonIcon(
-			"shuffle",
-			"Ergodic", // Initial title, will be updated immediately
-			() => this.toggleWalk(),
+		this.ribbonIconEl = this.addRibbonIcon("shuffle", "Ergodic", () =>
+			this.toggleWalk(),
 		);
 
-		this.updateUIMessages();
+		this.updateRibbonTooltip();
 		this.addSettingTab(new ErgodicSettingTab(this.app, this));
 	}
 
 	onunload() {
-		this.stopRandomWalk(false);
+		this.walk.stop();
 	}
 
-	/** Toggles the timed walk on and off. */
 	toggleWalk() {
-		if (this.timerId) {
-			this.stopRandomWalk(true);
+		if (this.walk.isActive) {
+			this.walk.stop();
+			new Notice("Ergodic random walk stopped.");
 		} else {
-			this.performJump(true);
+			this.walk.start(this.settings.jumpInterval * 1000);
 		}
 	}
 
-	/**
-	 * Opens a random note and optionally starts a timed walk.
-	 * @param useTimer If true, will start a timed walk based on settings.
-	 */
-	async performJump(useTimer: boolean) {
-		// Stop any existing walk before starting a new action
-		if (this.timerId) {
-			this.stopRandomWalk(false);
+	private async handleJump(): Promise<boolean> {
+		const success = await this.openRandomNote();
+		if (success && this.settings.showTimerBar) {
+			this.injectTimerBar();
+		}
+		return success;
+	}
+
+	private handleStateChange(isActive: boolean, interval: number) {
+		if (isActive) {
+			setIcon(this.ribbonIconEl, "pause");
+			this.ribbonIconEl.setAttribute("aria-label", "Stop ergodic walk");
+			this.registerStopListener();
 		} else {
-			// If no timer is running, still clean up any stray UI elements
+			setIcon(this.ribbonIconEl, "shuffle");
+			this.updateRibbonTooltip();
+			this.unregisterStopListener();
 			this.removeTimerBar();
 		}
-
-		if (await this.openRandomNote()) {
-			const shouldStartTimer =
-				useTimer && this.settings.jumpInterval > 0;
-			if (shouldStartTimer) {
-				this.updateStatusBar(true);
-				if (this.settings.showTimerBar) {
-					this.injectTimerBar();
-				}
-				this.registerStopListener();
-				this.timerId = setTimeout(() => {
-					this.performJump(true); // Recursive call for the walk
-				}, this.settings.jumpInterval * 1000);
-			}
-		}
+		this.updateStatusBar(isActive, interval);
 	}
 
-	stopRandomWalk(showNotice: boolean) {
-		if (this.timerId) {
-			clearTimeout(this.timerId);
-			this.timerId = null;
-			if (showNotice) new Notice("Ergodic random walk stopped.");
-		}
-		this.updateStatusBar(false);
-		this.unregisterStopListener();
-		this.removeTimerBar();
-	}
-
-	updateUIMessages() {
+	updateRibbonTooltip() {
 		const interval = this.settings.jumpInterval;
 		const title =
 			interval > 0
@@ -124,13 +119,22 @@ export default class ErgodicPlugin extends Plugin {
 		this.ribbonIconEl?.setAttribute("aria-label", title);
 	}
 
+	private updateStatusBar(isActive: boolean, interval: number) {
+		if (isActive) {
+			const text = `🎲 Ergodic walk active (${interval / 1000}s)`;
+			this.statusBarItemEl.setText(text);
+			this.statusBarItemEl.style.display = "block";
+		} else {
+			this.statusBarItemEl.style.display = "none";
+		}
+	}
 	private injectTimerBar() {
+		this.removeTimerBar();
 		const viewContent =
 			this.app.workspace.activeLeaf?.view.containerEl.querySelector(
 				".view-content",
 			);
 		if (!viewContent) return;
-
 		const container = document.createElement("div");
 		container.className = "ergodic-timer-container";
 		const bar = document.createElement("div");
@@ -140,29 +144,19 @@ export default class ErgodicPlugin extends Plugin {
 		viewContent.prepend(container);
 		this.timerBarEl = container;
 	}
-
 	private removeTimerBar() {
 		this.timerBarEl?.remove();
 		this.timerBarEl = null;
 	}
-
 	private registerStopListener() {
-		document.body.addEventListener("click", this.stopWalkHandler, true);
+		document.body.addEventListener("click", this.stopWalkOnUIClick, true);
 	}
-
 	private unregisterStopListener() {
-		document.body.removeEventListener("click", this.stopWalkHandler, true);
-	}
-
-	private updateStatusBar(active: boolean) {
-		if (active) {
-			const interval = this.settings.jumpInterval;
-			const text = `🎲 Ergodic walk active (${interval}s)`;
-			this.statusBarItemEl.setText(text);
-			this.statusBarItemEl.style.display = "block";
-		} else {
-			this.statusBarItemEl.style.display = "none";
-		}
+		document.body.removeEventListener(
+			"click",
+			this.stopWalkOnUIClick,
+			true,
+		);
 	}
 
 	private async openRandomNote(): Promise<boolean> {
@@ -177,7 +171,6 @@ export default class ErgodicPlugin extends Plugin {
 		await leaf.openFile(file);
 		return true;
 	}
-
 	private async getEligibleFiles(): Promise<TFile[]> {
 		const files = this.app.vault.getMarkdownFiles();
 		const { excludedPaths, excludedTags } = this.settings;
@@ -215,7 +208,6 @@ export default class ErgodicPlugin extends Plugin {
 		}
 		return eligibleFiles;
 	}
-
 	async loadSettings() {
 		this.settings = Object.assign(
 			{},
@@ -223,10 +215,9 @@ export default class ErgodicPlugin extends Plugin {
 			await this.loadData(),
 		);
 	}
-
 	async saveSettings() {
 		await this.saveData(this.settings);
-		this.updateUIMessages();
+		this.updateRibbonTooltip();
 	}
 }
 
