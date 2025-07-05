@@ -60,7 +60,7 @@ All options are available in the plugin settings (`Settings` -> `Community Plugi
 
 ### Manual Installation
 
-1.  Download the `main.js`, `manifest.json`, and `styles.css` files from the release.
+1.  Download the `main.js`, `manifest.json`, and `styles.css` files from the latest [release](https://github.com/rberenguel/obsidian-ergodic-plugin/releases).
 2.  Navigate to your Obsidian vault's plugin folder: `VAULT_ROOT/.obsidian/plugins/`.
 3.  Create a new folder named `ergodic`.
 4.  Copy the downloaded files into the `ergodic` folder.
