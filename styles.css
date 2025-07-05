@@ -1,0 +1,24 @@
+@keyframes fill-timer-bar {
+	from {
+		width: 0%;
+	}
+	to {
+		width: 100%;
+	}
+}
+
+.ergodic-timer-container {
+	background-color: var(--background-modifier-border);
+	border-radius: 4px;
+	margin-bottom: 1rem;
+	overflow: hidden; /* Ensures the inner bar respects the container's border-radius */
+}
+
+.ergodic-timer-bar {
+	height: 4px;
+	background-color: var(--color-accent);
+	border-radius: 4px;
+	animation-name: fill-timer-bar;
+	animation-timing-function: linear;
+	animation-fill-mode: forwards;
+}

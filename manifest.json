@@ -1,0 +1,10 @@
+{
+	"id": "ergodic",
+	"name": "Ergodic",
+	"version": "0.0.1",
+	"minAppVersion": "0.15.0",
+	"description": "Open a random note, with options to exclude paths/tags and auto-jump to the next one.",
+	"author": "Ruben Berenguel",
+	"authorUrl": "https://www.mostlymaths.net",
+	"isDesktopOnly": false
+}
