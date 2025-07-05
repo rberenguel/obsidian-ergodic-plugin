@@ -1,6 +1,6 @@
 {
 	"name": "ergodic",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"description": "Open a random note, with options to exclude paths/tags and auto-jump to the next one.",
 	"main": "main.js",
 	"scripts": {
