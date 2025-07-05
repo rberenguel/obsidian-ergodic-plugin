@@ -1,11 +1,11 @@
-import { vi, test, expect, describe, beforeEach, afterEach } from 'vitest';
-import { ErgodicWalk, ErgodicWalkCallbacks, WalkConfig } from '../ergodic-walk'; // Adjust path if needed
+import { vi, test, expect, describe, beforeEach, afterEach } from "vitest";
+import { ErgodicWalk, ErgodicWalkCallbacks, WalkConfig } from "../ergodic-walk"; // Adjust path if needed
 
-describe('ErgodicWalk', () => {
+describe("ErgodicWalk", () => {
 	let walk: ErgodicWalk;
 	let callbacks: ErgodicWalkCallbacks;
-    const leisureConfig: WalkConfig = { interval: 15000, showBar: true };
-    const fastConfig: WalkConfig = { interval: 2000, showBar: false };
+	const leisureConfig: WalkConfig = { interval: 15000, showBar: true };
+	const fastConfig: WalkConfig = { interval: 2000, showBar: false };
 
 	// Set up fake timers and mock callbacks before each test
 	beforeEach(() => {
@@ -22,32 +22,35 @@ describe('ErgodicWalk', () => {
 		vi.useRealTimers();
 	});
 
-	test('should not start if interval is 0', async () => {
+	test("should not start if interval is 0", async () => {
 		await walk.start({ interval: 0, showBar: true });
 		expect(walk.isActive).toBe(false);
 	});
 
-	test('should start, perform an initial jump, and set state correctly', async () => {
+	test("should start, perform an initial jump, and set state correctly", async () => {
 		await walk.start(leisureConfig);
 
 		expect(walk.isActive).toBe(true);
-		expect(callbacks.onStateChange).toHaveBeenCalledWith(true, leisureConfig);
+		expect(callbacks.onStateChange).toHaveBeenCalledWith(
+			true,
+			leisureConfig,
+		);
 		expect(callbacks.onJump).toHaveBeenCalledWith(leisureConfig);
 		expect(callbacks.onJump).toHaveBeenCalledTimes(1);
 	});
 
-	test('should perform a second jump after the interval', async () => {
+	test("should perform a second jump after the interval", async () => {
 		await walk.start(fastConfig);
 		expect(callbacks.onJump).toHaveBeenCalledTimes(1);
 
 		await vi.advanceTimersByTimeAsync(fastConfig.interval);
 
 		expect(callbacks.onJump).toHaveBeenCalledTimes(2);
-        // Ensure the config is passed on the second jump as well
-        expect(callbacks.onJump).toHaveBeenLastCalledWith(fastConfig);
+		// Ensure the config is passed on the second jump as well
+		expect(callbacks.onJump).toHaveBeenLastCalledWith(fastConfig);
 	});
 
-	test('should stop the timer and update state when stop() is called', async () => {
+	test("should stop the timer and update state when stop() is called", async () => {
 		await walk.start(leisureConfig);
 		expect(walk.isActive).toBe(true); // Sanity check
 
@@ -61,7 +64,7 @@ describe('ErgodicWalk', () => {
 		expect(callbacks.onJump).toHaveBeenCalledTimes(1); // Still 1 from the initial jump
 	});
 
-    test('should stop automatically if a jump fails', async () => {
+	test("should stop automatically if a jump fails", async () => {
 		callbacks.onJump = vi.fn().mockResolvedValue(false);
 		walk = new ErgodicWalk(callbacks);
 
@@ -73,28 +76,34 @@ describe('ErgodicWalk', () => {
 		expect(walk.isActive).toBe(false);
 	});
 
-    test('should stop an active walk when a new walk is started', async () => {
-        // 1. Start a leisure walk
-        await walk.start(leisureConfig);
-        expect(walk.isActive).toBe(true);
-        expect(callbacks.onJump).toHaveBeenCalledWith(leisureConfig);
-        expect(callbacks.onStateChange).toHaveBeenCalledWith(true, leisureConfig);
+	test("should stop an active walk when a new walk is started", async () => {
+		// 1. Start a leisure walk
+		await walk.start(leisureConfig);
+		expect(walk.isActive).toBe(true);
+		expect(callbacks.onJump).toHaveBeenCalledWith(leisureConfig);
+		expect(callbacks.onStateChange).toHaveBeenCalledWith(
+			true,
+			leisureConfig,
+		);
 
-        // 2. Start a fast walk, which should interrupt the leisure walk
-        await walk.start(fastConfig);
-        expect(walk.isActive).toBe(true);
-        expect(callbacks.onJump).toHaveBeenCalledWith(fastConfig);
+		// 2. Start a fast walk, which should interrupt the leisure walk
+		await walk.start(fastConfig);
+		expect(walk.isActive).toBe(true);
+		expect(callbacks.onJump).toHaveBeenCalledWith(fastConfig);
 
-        // 3. Check the sequence of state changes
-        // Call 1: start leisure (true)
-        // Call 2: stop leisure (false) because new walk is starting
-        // Call 3: start fast (true)
-        expect(callbacks.onStateChange).toHaveBeenCalledTimes(3);
-        expect(callbacks.onStateChange).toHaveBeenCalledWith(false, null);
-        expect(callbacks.onStateChange).toHaveBeenLastCalledWith(true, fastConfig);
+		// 3. Check the sequence of state changes
+		// Call 1: start leisure (true)
+		// Call 2: stop leisure (false) because new walk is starting
+		// Call 3: start fast (true)
+		expect(callbacks.onStateChange).toHaveBeenCalledTimes(3);
+		expect(callbacks.onStateChange).toHaveBeenCalledWith(false, null);
+		expect(callbacks.onStateChange).toHaveBeenLastCalledWith(
+			true,
+			fastConfig,
+		);
 
-        // 4. Advance timer by the new, fast interval and check for jump
-        await vi.advanceTimersByTimeAsync(fastConfig.interval);
-        expect(callbacks.onJump).toHaveBeenCalledTimes(3); // 1 for leisure, 1 for fast start, 1 for fast continue
-    });
+		// 4. Advance timer by the new, fast interval and check for jump
+		await vi.advanceTimersByTimeAsync(fastConfig.interval);
+		expect(callbacks.onJump).toHaveBeenCalledTimes(3); // 1 for leisure, 1 for fast start, 1 for fast continue
+	});
 });

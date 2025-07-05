@@ -10,11 +10,11 @@ All code by Gemini, all prompting by the human.
 
 ## Features
 
-* **Two Modes of Operation**: Instantly jump to a single random note or start a "timed walk" to automatically browse through your vault.
-* **Dedicated Controls**: Use a predictable hotkey for single jumps and a ribbon button to toggle the timed walk.
+* **Three Distinct Modes**: Instantly jump to a single random note, start a configurable "Leisure Walk," or begin a "Fast Walk" for rapid discovery.
+* **Dedicated Controls**: Use a predictable hotkey for single jumps and two ribbon button to toggle the two timed walk options
 * **Powerful Exclusions**: To make the random selection useful, you can exclude notes based on their folder path or tags.
-* **Clear Visual Feedback**: The ribbon icon changes from **shuffle** ([this icon](https://lucide.dev/icons/shuffle)) to **pause** ([this icon](https://lucide.dev/icons/pause)) when a walk is active. A status bar message also shows the active state.
-* **Optional Visual Timer**: An animated timer bar can be displayed at the top of your note to show the progress of the auto-jump interval.
+* **Clear Visual Feedback**: The ribbon icon changes from **shuffle** ([this icon](https://lucide.dev/icons/shuffle)) or **fast-forward** ([this icon](https://lucide.dev/icons/fast-forward)) to **pause** ([this icon](https://lucide.dev/icons/pause)) when a walk is active. A status bar message also shows the active state.
+* **Optional Visual Timer**: An animated timer bar can be displayed at the top of your note to show the progress of the auto-jump leisure walk mode.
 
 ---
 
@@ -22,25 +22,31 @@ All code by Gemini, all prompting by the human.
 
 Ergodic provides two distinct ways to explore your notes, each with its own controls.
 
-### Quick Jump (Single Note)
+### 1. Quick Jump (Single Note)
 
 This is the best way to jump to one random note at your leisure.
 
 * **Command Palette**: Run the command `Ergodic: Open random note (no timer)`. This will *always* open a single random note and will not start a timer, regardless of your settings.
 * **Hotkey**: By default and suggested, press **`Alt+R`**. Of course you can change or disable this.
 
-### Timed Walk (Auto-Jump)
+### 2. Leisure Walk
 
-This mode automatically opens a new random note after a set interval, letting you sit back and rediscover your vault. This mode is only active if you have set a _Jump interval_ greater than 0 seconds in the settings.
+A configurable, slower-paced walk, ideal for casual Browse. The speed and timer bar visibility are based on your settings.
 
-* **Ribbon Button**: Click the **shuffle icon** in the left ribbon to start the timed walk. The icon will change to a **pause symbol** to show it's active.
-* **Command Palette**: Run the command `Ergodic: Open random note and start walk`.
+* **Ribbon Button**: Click the **shuffle icon** to start the Leisure Walk.
+* **Command Palette**: Use the command `Ergodic: Toggle Leisure Walk`.
 
+### 3. Fast Walk
+
+A configurable, rapid walk for quick-fire discovery. The timer bar is always hidden in this mode.
+
+* **Ribbon Button**: Click the **fast-forward icon** to start the Fast Walk.
+* **Command Palette**: Use the command `Ergodic: Toggle Fast Walk`.
 #### Stopping the Walk
 
 You can stop a timed walk in two ways:
 
-1.  Click (or tap) the **pause icon** on the ribbon.
+1.  Click (or tap) either of the **pause icons** on the ribbon.
 2.  **Click (or tap) anywhere** inside the note content area.
 
 ---
@@ -53,6 +59,7 @@ All options are available in the plugin settings (`Settings` -> `Community Plugi
 * **Excluded tags**: A comma-separated list of tags to exclude, without the `#` (e.g., `archive, meta`).
 * **Jump interval (seconds)**: If set to a number greater than 0, the main command and ribbon button will start a timed walk.
 * **Show visual timer bar**: Toggles the display of the progress bar at the top of the note during a timed walk.
+* **Fast Walk**: Configure the jump interval (in seconds) for this mode.
 
 ---
 

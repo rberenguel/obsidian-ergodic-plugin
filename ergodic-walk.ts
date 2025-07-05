@@ -48,7 +48,10 @@ export class ErgodicWalk {
 
 		if (success) {
 			// The first jump succeeded, so set the real timer for the next step.
-			this.timerId = setTimeout(() => this.continue(), this.currentConfig.interval);
+			this.timerId = setTimeout(
+				() => this.continue(),
+				this.currentConfig.interval,
+			);
 		} else {
 			// The first jump failed, so stop the walk completely.
 			this.stop();
@@ -73,7 +76,10 @@ export class ErgodicWalk {
 		const success = await this.callbacks.onJump(this.currentConfig!);
 
 		if (success && this.isActive) {
-			this.timerId = setTimeout(() => this.continue(), this.currentConfig!.interval);
+			this.timerId = setTimeout(
+				() => this.continue(),
+				this.currentConfig!.interval,
+			);
 		} else {
 			this.stop();
 		}
