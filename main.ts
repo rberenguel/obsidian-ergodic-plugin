@@ -9,15 +9,18 @@ import {
 	Notice,
 	getAllTags,
 	setIcon,
+	Platform, // Import Platform
 } from "obsidian";
 import { ErgodicWalk, WalkConfig } from "./ergodic-walk";
 
+// Settings interface and defaults are unchanged from the last version
 interface ErgodicPluginSettings {
 	excludedPaths: string;
 	excludedTags: string;
 	leisureInterval: number;
 	fastInterval: number;
 	showTimerBar: boolean;
+	swipeDirection: "right" | "left";
 }
 
 const DEFAULT_SETTINGS: ErgodicPluginSettings = {
@@ -26,6 +29,7 @@ const DEFAULT_SETTINGS: ErgodicPluginSettings = {
 	leisureInterval: 15,
 	fastInterval: 2,
 	showTimerBar: true,
+	swipeDirection: "left",
 };
 
 export default class ErgodicPlugin extends Plugin {
@@ -36,7 +40,17 @@ export default class ErgodicPlugin extends Plugin {
 	private statusBarItemEl: HTMLElement;
 	private timerBarEl: HTMLElement | null = null;
 
+	// --- Properties for swipe handling ---
+	private touchStartX = 0;
+	private didSwipe = false;
+	private isDragging = false;
+	private activeViewEl: HTMLElement | null = null;
+
 	private readonly stopWalkOnUIClick = (evt: MouseEvent) => {
+		if (this.didSwipe) {
+			this.didSwipe = false;
+			return;
+		}
 		if (
 			this.leisureRibbonEl.contains(evt.target as Node) ||
 			this.fastRibbonEl.contains(evt.target as Node)
@@ -49,16 +63,118 @@ export default class ErgodicPlugin extends Plugin {
 		}
 	};
 
+	private handleTouchStart = (evt: TouchEvent) => {
+		this.touchStartX = evt.touches[0].clientX;
+		this.didSwipe = false;
+		this.isDragging = true;
+		this.activeViewEl?.addClass("ergodic-drag-active");
+	};
+
+	private handleTouchMove = (evt: TouchEvent) => {
+		if (!this.isDragging || !this.activeViewEl) return;
+
+		const touchCurrentX = evt.touches[0].clientX;
+		const deltaX = touchCurrentX - this.touchStartX;
+
+		// Live drag effect
+		const viewContent = this.activeViewEl.querySelector(
+			".view-content",
+		) as HTMLElement;
+		if (viewContent) {
+			viewContent.style.transform = `translateX(${deltaX}px) rotate(${deltaX / 40}deg)`;
+		}
+	};
+
+	private handleTouchEnd = (evt: TouchEvent) => {
+		if (!this.isDragging || !this.activeViewEl) return;
+		this.isDragging = false;
+		this.activeViewEl.removeClass("ergodic-drag-active");
+
+		const viewContent = this.activeViewEl.querySelector(
+			".view-content",
+		) as HTMLElement;
+		if (!viewContent) return;
+
+		// Clear the inline style to allow CSS animations to take over
+		viewContent.style.transform = "";
+
+		const touchEndX = evt.changedTouches[0].clientX;
+		const deltaX = touchEndX - this.touchStartX;
+		const minSwipeDist = 60;
+		const animationDuration = 200; // ms
+
+		if (Math.abs(deltaX) > minSwipeDist) {
+			this.didSwipe = true;
+			const swipeLeft = deltaX < 0;
+			const isForwardSwipe =
+				(swipeLeft && this.settings.swipeDirection === "left") ||
+				(!swipeLeft && this.settings.swipeDirection === "right");
+
+			// Add animation class
+			this.activeViewEl.addClass(
+				swipeLeft
+					? "ergodic-swiping-out-left"
+					: "ergodic-swiping-out-right",
+			);
+
+			// Perform action after animation
+			setTimeout(() => {
+				if (isForwardSwipe) {
+					this.walk.forceNext();
+				} else {
+					(this.app as any).commands.executeCommandById(
+						"app:go-back",
+					);
+					this.walk.resetTimer();
+				}
+				// Clean up animation class after action
+				this.activeViewEl?.removeClass(
+					"ergodic-swiping-out-left",
+					"ergodic-swiping-out-right",
+				);
+			}, animationDuration);
+		} else {
+			// Not a long enough swipe, animate back to center
+			this.activeViewEl.addClass("ergodic-snapping-back");
+			setTimeout(() => {
+				this.activeViewEl?.removeClass("ergodic-snapping-back");
+			}, animationDuration);
+		}
+	};
+
+	private getActiveViewEl = () => this.app.workspace.activeLeaf?.view.containerEl ?? null;
+
+	private registerSwipeListeners() {
+		this.activeViewEl = this.getActiveViewEl();
+		if (!this.activeViewEl) return;
+		this.activeViewEl.addEventListener("touchstart", this.handleTouchStart);
+		this.activeViewEl.addEventListener("touchmove", this.handleTouchMove);
+		this.activeViewEl.addEventListener("touchend", this.handleTouchEnd);
+	}
+
+	private unregisterSwipeListeners() {
+		if (!this.activeViewEl) return;
+		this.activeViewEl.removeEventListener(
+			"touchstart",
+			this.handleTouchStart,
+		);
+		this.activeViewEl.removeEventListener(
+			"touchmove",
+			this.handleTouchMove,
+		);
+		this.activeViewEl.removeEventListener("touchend", this.handleTouchEnd);
+		this.activeViewEl = null;
+	}
+
+	// All other methods from before remain, with minor updates to handle state changes
 	async onload() {
 		await this.loadSettings();
 		this.statusBarItemEl = this.addStatusBarItem();
-
 		this.walk = new ErgodicWalk({
 			onJump: (config) => this.handleJump(config),
 			onStateChange: (isActive, config) =>
 				this.handleStateChange(isActive, config),
 		});
-
 		this.addCommand({
 			id: "toggle-leisure-walk",
 			name: "Toggle Leisure Walk",
@@ -74,15 +190,10 @@ export default class ErgodicPlugin extends Plugin {
 			name: "Jump Once (no timer)",
 			hotkeys: [{ modifiers: ["Alt"], key: "r" }],
 			callback: () => {
-				if (this.walk.isActive) {
-					this.walk.stop();
-				}
+				if (this.walk.isActive) this.walk.stop();
 				this.openRandomNote();
 			},
 		});
-
-		// --- Corrected Ribbon Button Creation ---
-		// Set the tooltip directly here for robust initialization.
 		this.leisureRibbonEl = this.addRibbonIcon(
 			"shuffle",
 			`Start Leisure Walk (${this.settings.leisureInterval}s)`,
@@ -93,7 +204,6 @@ export default class ErgodicPlugin extends Plugin {
 			`Start Fast Walk (${this.settings.fastInterval}s)`,
 			() => this.handleFastClick(),
 		);
-
 		this.addSettingTab(new ErgodicSettingTab(this.app, this));
 	}
 
@@ -112,7 +222,6 @@ export default class ErgodicPlugin extends Plugin {
 			});
 		}
 	}
-
 	private handleFastClick() {
 		if (this.walk.isActive) {
 			this.walk.stop();
@@ -127,6 +236,11 @@ export default class ErgodicPlugin extends Plugin {
 
 	private async handleJump(config: WalkConfig): Promise<boolean> {
 		const success = await this.openRandomNote();
+		if (success && this.walk.isActive && Platform.isMobile) {
+			// Re-register listeners on the new view
+			this.unregisterSwipeListeners();
+			this.registerSwipeListeners();
+		}
 		if (success && config.showBar) {
 			this.injectTimerBar(config.interval);
 		}
@@ -141,11 +255,13 @@ export default class ErgodicPlugin extends Plugin {
 			this.leisureRibbonEl.setAttribute("aria-label", stopTitle);
 			this.fastRibbonEl.setAttribute("aria-label", stopTitle);
 			this.registerStopListener();
+			if (Platform.isMobile) this.registerSwipeListeners();
 		} else {
 			setIcon(this.leisureRibbonEl, "shuffle");
 			setIcon(this.fastRibbonEl, "fast-forward");
 			this.updateTooltips();
 			this.unregisterStopListener();
+			if (Platform.isMobile) this.unregisterSwipeListeners();
 			this.removeTimerBar();
 		}
 		this.updateStatusBar(isActive, config);
@@ -157,7 +273,6 @@ export default class ErgodicPlugin extends Plugin {
 		this.leisureRibbonEl?.setAttribute("aria-label", leisureTitle);
 		this.fastRibbonEl?.setAttribute("aria-label", fastTitle);
 	}
-
 	private updateStatusBar(isActive: boolean, config: WalkConfig | null) {
 		if (isActive && config) {
 			const text = `🎲 Ergodic walk active (${config.interval / 1000}s)`;
@@ -167,7 +282,6 @@ export default class ErgodicPlugin extends Plugin {
 			this.statusBarItemEl.style.display = "none";
 		}
 	}
-
 	private injectTimerBar(intervalMs: number) {
 		this.removeTimerBar();
 		const viewContent =
@@ -184,7 +298,6 @@ export default class ErgodicPlugin extends Plugin {
 		viewContent.prepend(container);
 		this.timerBarEl = container;
 	}
-
 	private removeTimerBar() {
 		this.timerBarEl?.remove();
 		this.timerBarEl = null;
@@ -199,7 +312,6 @@ export default class ErgodicPlugin extends Plugin {
 			true,
 		);
 	}
-
 	private async openRandomNote(): Promise<boolean> {
 		const eligibleFiles = await this.getEligibleFiles();
 		if (eligibleFiles.length === 0) {
@@ -212,7 +324,6 @@ export default class ErgodicPlugin extends Plugin {
 		await leaf.openFile(file);
 		return true;
 	}
-
 	private async getEligibleFiles(): Promise<TFile[]> {
 		const files = this.app.vault.getMarkdownFiles();
 		const { excludedPaths, excludedTags } = this.settings;
@@ -273,7 +384,6 @@ class ErgodicSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 		containerEl.createEl("h2", { text: "Ergodic Settings" });
-
 		new Setting(containerEl)
 			.setName("Excluded folder paths")
 			.setDesc("Comma-separated list of paths to exclude.")
@@ -298,7 +408,6 @@ class ErgodicSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}),
 			);
-
 		containerEl.createEl("h3", { text: "Leisure Walk" });
 		new Setting(containerEl)
 			.setName("Leisure interval (seconds)")
@@ -325,13 +434,10 @@ class ErgodicSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}),
 			);
-
 		containerEl.createEl("h3", { text: "Fast Walk" });
 		new Setting(containerEl)
 			.setName("Fast interval (seconds)")
-			.setDesc(
-				"Speed for the 'Fast Walk' mode (fast-forward icon). The timer bar is always hidden in this mode.",
-			)
+			.setDesc("Speed for the 'Fast Walk' mode (fast-forward icon).")
 			.addText((text) =>
 				text
 					.setValue(this.plugin.settings.fastInterval.toString())
@@ -341,5 +447,21 @@ class ErgodicSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}),
 			);
+		containerEl.createEl("h3", { text: "Mobile" });
+		new Setting(containerEl)
+			.setName("Swipe direction for next")
+			.setDesc(
+				"Configure which direction swipes to the next random note on mobile.",
+			)
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("left", "Swipe Left")
+					.addOption("right", "Swipe Right")
+					.setValue(this.plugin.settings.swipeDirection)
+					.onChange(async (value: "left" | "right") => {
+						this.plugin.settings.swipeDirection = value;
+						await this.plugin.saveSettings();
+					});
+			});
 	}
 }

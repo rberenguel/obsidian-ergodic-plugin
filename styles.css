@@ -22,3 +22,30 @@
 	animation-timing-function: linear;
 	animation-fill-mode: forwards;
 }
+
+/* Ergordic Swipe Animations */
+.ergodic-drag-active .markdown-reading-view,
+.ergodic-drag-active .markdown-source-view {
+	/* Prevents text selection while dragging */
+	user-select: none;
+}
+
+/* The state for animating the card back to center */
+.ergodic-snapping-back > .view-content {
+	transition: transform 0.2s ease-out;
+	transform: translateX(0) rotate(0deg) !important;
+}
+
+/* The states for animating the card off the screen */
+.ergodic-swiping-out-left > .view-content,
+.ergodic-swiping-out-right > .view-content {
+	transition: transform 0.2s ease-in;
+}
+
+.ergodic-swiping-out-left > .view-content {
+	transform: translateX(-120%) rotate(-15deg) !important;
+}
+
+.ergodic-swiping-out-right > .view-content {
+	transform: translateX(120%) rotate(15deg) !important;
+}

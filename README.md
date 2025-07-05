@@ -11,7 +11,8 @@ All code by Gemini, all prompting by the human.
 ## Features
 
 * **Three Distinct Modes**: Instantly jump to a single random note, start a configurable "Leisure Walk," or begin a "Fast Walk" for rapid discovery.
-* **Dedicated Controls**: Use a predictable hotkey for single jumps and two ribbon button to toggle the two timed walk options
+* **Dedicated Controls**: Use a predictable hotkey for single jumps and two ribbon button to toggle the two timed walk options.
+* **Mobile Swipe Gestures**: On mobile devices, when a timed walk is active, you can swipe left or right to navigate between random notes and go back in your note history. Note that this briefly opens and closes either side sidebar. Sadly there seems to be no way to prevent this.
 * **Powerful Exclusions**: To make the random selection useful, you can exclude notes based on their folder path or tags.
 * **Clear Visual Feedback**: The ribbon icon changes from **shuffle** ([this icon](https://lucide.dev/icons/shuffle)) or **fast-forward** ([this icon](https://lucide.dev/icons/fast-forward)) to **pause** ([this icon](https://lucide.dev/icons/pause)) when a walk is active. A status bar message also shows the active state.
 * **Optional Visual Timer**: An animated timer bar can be displayed at the top of your note to show the progress of the auto-jump leisure walk mode.
@@ -44,10 +45,16 @@ A configurable, rapid walk for quick-fire discovery. The timer bar is always hid
 * **Command Palette**: Use the command `Ergodic: Toggle Fast Walk`.
 #### Stopping the Walk
 
-You can stop a timed walk in two ways:
+### You can stop a timed walk in two ways
 
 1.  Click (or tap) either of the **pause icons** on the ribbon.
 2.  **Click (or tap) anywhere** inside the note content area.
+
+### Mobile swipe navigation during a timed walk
+When a timed walk is active on a mobile device, you can use swipe gestures to navigate:
+
+* Swipe Forward: Swiping in your configured "forward" direction immediately jumps to a new random note and resets the timer.
+* Swipe Backward: Swiping in the reverse direction goes back to the previous note in your history and also resets the timer.
 
 ---
 
@@ -60,6 +67,7 @@ All options are available in the plugin settings (`Settings` -> `Community Plugi
 * **Jump interval (seconds)**: If set to a number greater than 0, the main command and ribbon button will start a timed walk.
 * **Show visual timer bar**: Toggles the display of the progress bar at the top of the note during a timed walk.
 * **Fast Walk**: Configure the jump interval (in seconds) for this mode.
+* **Swipe direction** for next: Configure which direction (_Swipe Left_ or _Swipe Right_) is used to navigate to the next random note on mobile devices.
 
 ---
 
