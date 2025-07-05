@@ -1,13 +1,18 @@
 // ergodic-walk.ts
 
+export interface WalkConfig {
+	interval: number;
+	showBar: boolean;
+}
+
 export interface ErgodicWalkCallbacks {
-	onJump: () => Promise<boolean>;
-	onStateChange: (isActive: boolean, interval: number) => void;
+	onJump: (config: WalkConfig) => Promise<boolean>;
+	onStateChange: (isActive: boolean, config: WalkConfig | null) => void;
 }
 
 export class ErgodicWalk {
 	private timerId: NodeJS.Timeout | null = null;
-	private interval = 0;
+	private currentConfig: WalkConfig | null = null;
 	private callbacks: ErgodicWalkCallbacks;
 
 	constructor(callbacks: ErgodicWalkCallbacks) {
@@ -18,29 +23,32 @@ export class ErgodicWalk {
 		return this.timerId !== null;
 	}
 
-	public async start(interval: number): Promise<void> {
-		if (this.isActive || interval <= 0) {
+	public async start(config: WalkConfig): Promise<void> {
+		if (this.isActive) {
+			this.stop(); // Stop any currently active walk first.
+		}
+
+		if (config.interval <= 0) {
 			return;
 		}
 
-		this.interval = interval;
+		this.currentConfig = config;
 
 		// Set a temporary timer to immediately mark the state as active.
 		// This prevents race conditions if stop() is called during the first jump.
-		this.timerId = setTimeout(() => {}, interval);
-		this.callbacks.onStateChange(true, this.interval);
+		this.timerId = setTimeout(() => {}, config.interval);
+		this.callbacks.onStateChange(true, this.currentConfig);
 
-		const success = await this.callbacks.onJump();
+		const success = await this.callbacks.onJump(this.currentConfig);
 
+		// Check if stop() was called during the onJump await. If so, bail.
 		if (!this.isActive) {
-			// This means stop() was called during the onJump await.
-			// The stop() call already cleaned everything up, so we just bail.
 			return;
 		}
 
 		if (success) {
 			// The first jump succeeded, so set the real timer for the next step.
-			this.timerId = setTimeout(() => this.continue(), this.interval);
+			this.timerId = setTimeout(() => this.continue(), this.currentConfig.interval);
 		} else {
 			// The first jump failed, so stop the walk completely.
 			this.stop();
@@ -51,19 +59,22 @@ export class ErgodicWalk {
 		if (!this.isActive) {
 			return;
 		}
+
 		clearTimeout(this.timerId!);
 		this.timerId = null;
-		this.callbacks.onStateChange(false, 0);
+		this.callbacks.onStateChange(false, null);
 	}
 
 	private async continue(): Promise<void> {
-		const success = await this.callbacks.onJump();
+		if (!this.isActive) {
+			return;
+		}
+
+		const success = await this.callbacks.onJump(this.currentConfig!);
 
 		if (success && this.isActive) {
-			// If the jump succeeded and we're still supposed to be active, schedule the next one.
-			this.timerId = setTimeout(() => this.continue(), this.interval);
+			this.timerId = setTimeout(() => this.continue(), this.currentConfig!.interval);
 		} else {
-			// If a jump fails or stop() was called, stop the walk.
 			this.stop();
 		}
 	}
