@@ -45,10 +45,13 @@ A configurable, rapid walk for quick-fire discovery. The timer bar is always hid
 * **Command Palette**: Use the command `Ergodic: Toggle Fast Walk`.
 #### Stopping the Walk
 
-### You can stop a timed walk in two ways
+### You can stop a timed walk in several ways:
 
 1.  Click (or tap) either of the **pause icons** on the ribbon.
-2.  **Click (or tap) anywhere** inside the note content area.
+2.  **Click (or tap) anywhere** inside the note content area. This will not bring up the keyboard on mobile.
+3.  **Press any key** on your keyboard (including external keyboards on mobile). This will not add the edit to your note, just stop.
+4. Worst case scenario, you can't escape the note cycle, restart Obsidian and let me know 😬.
+
 
 ### Mobile swipe navigation during a timed walk
 When a timed walk is active on a mobile device, you can use swipe gestures to navigate:

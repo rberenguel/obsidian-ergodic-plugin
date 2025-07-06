@@ -58,6 +58,20 @@ export default class ErgodicPlugin extends Plugin {
 			return;
 		}
 		if (this.walk.isActive) {
+			evt.preventDefault();
+			evt.stopPropagation();
+			this.walk.stop();
+			new Notice("Ergodic random walk stopped.");
+			if (Platform.isMobile) {
+				(document.activeElement as HTMLElement)?.blur();
+			}
+		}
+	};
+
+	private readonly stopWalkOnKeyPress = (evt: KeyboardEvent) => {
+		if (this.walk.isActive) {
+			evt.preventDefault();
+			evt.stopPropagation();
 			this.walk.stop();
 			new Notice("Ergodic random walk stopped.");
 		}
@@ -81,7 +95,9 @@ export default class ErgodicPlugin extends Plugin {
 			".view-content",
 		) as HTMLElement;
 		if (viewContent) {
-			viewContent.style.transform = `translateX(${deltaX}px) rotate(${deltaX / 40}deg)`;
+			viewContent.style.transform = `translateX(${deltaX}px) rotate(${
+				deltaX / 40
+			}deg)`;
 		}
 	};
 
@@ -142,7 +158,8 @@ export default class ErgodicPlugin extends Plugin {
 		}
 	};
 
-	private getActiveViewEl = () => this.app.workspace.activeLeaf?.view.containerEl ?? null;
+	private getActiveViewEl = () =>
+		this.app.workspace.activeLeaf?.view.containerEl ?? null;
 
 	private registerSwipeListeners() {
 		this.activeViewEl = this.getActiveViewEl();
@@ -304,11 +321,21 @@ export default class ErgodicPlugin extends Plugin {
 	}
 	private registerStopListener() {
 		document.body.addEventListener("click", this.stopWalkOnUIClick, true);
+		document.body.addEventListener(
+			"keydown",
+			this.stopWalkOnKeyPress,
+			true,
+		);
 	}
 	private unregisterStopListener() {
 		document.body.removeEventListener(
 			"click",
 			this.stopWalkOnUIClick,
+			true,
+		);
+		document.body.removeEventListener(
+			"keydown",
+			this.stopWalkOnKeyPress,
 			true,
 		);
 	}
